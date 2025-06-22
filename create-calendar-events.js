@@ -59,8 +59,43 @@ async function main() {
 
   rl.close();
 
-  // TODO: Read workouts from Notion and create calendar events
-  console.log("🚧 Next: Implement calendar event creation...");
+  const { weekStart, weekEnd } = getWeekBoundaries(2025, weekNumber);
+  console.log(`\n📊 Creating calendar events for Week ${weekNumber}`);
+  console.log(
+    `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+  );
+
+  // Get workouts from Notion
+  const workouts = await notion.getWorkoutsForWeek(weekStart, weekEnd);
+
+  if (workouts.length === 0) {
+    console.log("📭 No workouts found without calendar events for this week");
+    console.log(
+      "💡 Try running collect-workouts.js first to gather workout data"
+    );
+    return;
+  }
+
+  console.log("\n🗓️ Creating calendar events:");
+  let createdCount = 0;
+
+  for (const workout of workouts) {
+    try {
+      await calendar.createWorkoutEvent(workout);
+      await notion.markCalendarCreated(workout.id);
+      createdCount++;
+    } catch (error) {
+      console.error(
+        `❌ Failed to create calendar event for ${workout.activityName}:`,
+        error.message
+      );
+    }
+  }
+
+  console.log(
+    `\n✅ Successfully created ${createdCount}/${workouts.length} calendar events!`
+  );
+  console.log("🎯 Check your fitness calendar to see the workouts!");
 }
 
 main().catch(console.error);
