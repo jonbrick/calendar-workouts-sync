@@ -18,8 +18,13 @@ class GPXParser {
       const metadata = gpx.metadata[0];
       const track = gpx.trk[0];
 
+      // Convert UTC to EST (UTC-4 for daylight saving time, UTC-5 for standard time)
+      const utcTime = new Date(metadata.time[0]);
+      const estOffset = -4; // EST is UTC-4 (daylight saving time)
+      const estTime = new Date(utcTime.getTime() + estOffset * 60 * 60 * 1000);
+
       // Extract basic info
-      const startTime = new Date(metadata.time[0]);
+      const startTime = utcTime; // Keep original UTC for calculations
       const activityName = track.name[0];
       const activityType = track.type[0];
 
@@ -80,7 +85,7 @@ class GPXParser {
         name: activityName,
         type: mappedType,
         start_date: startTime.toISOString(),
-        start_date_local: startTime.toISOString(),
+        start_date_local: estTime.toISOString(),
         distance: stats.distance,
         moving_time: stats.movingTime,
         total_elevation_gain: stats.elevationGain,
