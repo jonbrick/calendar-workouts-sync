@@ -15,7 +15,7 @@ Automatically sync your Strava workouts to Google Calendar with comprehensive da
 ### Two-Script System
 
 1. **`collect-workouts.js`:** Strava API → Notion database storage
-2. **`create-calendar-events.js`:** Notion data → Google Calendar events
+2. **`update-workout-cal.js`:** Notion data → Google Calendar events
 
 ### Data Flow
 
@@ -170,7 +170,7 @@ node collect-workouts.js
 ### Create Calendar Events
 
 ```bash
-node create-calendar-events.js
+node update-workout-cal.js
 ```
 
 **Interactive Process:**
@@ -190,7 +190,7 @@ node collect-workouts.js
 # Enter: 25
 
 # Step 2: Create calendar events for this week
-node create-calendar-events.js
+node update-workout-cal.js
 # Enter: 25
 ```
 
@@ -203,7 +203,7 @@ calendar-workout-sync/
 ├── .env.example
 ├── .gitignore
 ├── collect-workouts.js         # Script 1: Data collection
-├── create-calendar-events.js   # Script 2: Calendar creation
+├── update-workout-cal.js       # Script 2: Calendar creation
 ├── lib/
 │   ├── strava-client.js        # Strava API interface
 │   ├── notion-client.js        # Notion database operations

@@ -1,5 +1,5 @@
-const StravaClient = require("./lib/strava-client.js");
 const NotionClient = require("./lib/notion-client.js");
+const CalendarClient = require("./lib/calendar-client.js");
 const {
   getWeekBoundaries,
   generateWeekOptions,
@@ -7,8 +7,8 @@ const {
 const readline = require("readline");
 
 // Create clients
-const strava = new StravaClient();
 const notion = new NotionClient();
+const calendar = new CalendarClient();
 
 // Create readline interface
 const rl = readline.createInterface({
@@ -73,20 +73,20 @@ function getWeekBoundariesForDate(date) {
 }
 
 async function main() {
-  console.log("🏃‍♂️ Strava Workout Collector 2025\n");
+  console.log("🗓️ Calendar Event Creator 2025\n");
 
   // Test connections
   console.log("Testing connections...");
-  const stravaOk = await strava.testConnection();
   const notionOk = await notion.testConnection();
+  const calendarOk = await calendar.testConnection();
 
-  if (!stravaOk || !notionOk) {
+  if (!notionOk || !calendarOk) {
     console.log("❌ Connection failed. Please check your .env file.");
     process.exit(1);
   }
 
-  console.log("✅ Strava connection successful!");
   console.log("✅ Notion connection successful!");
+  console.log("✅ Calendar connection successful!");
   console.log("📊 Database: Workout Data\n");
 
   console.log("📅 Choose your selection method:");
@@ -136,7 +136,7 @@ async function main() {
     console.log(`  52 - ${weeks[51].label}\n`);
 
     const weekInput = await askQuestion(
-      "? Which week to collect? (enter week number): "
+      "? Which week to create calendar events? (enter week number): "
     );
     const weekNumber = parseInt(weekInput);
 
@@ -156,11 +156,11 @@ async function main() {
 
   if (optionInput === "1") {
     console.log(
-      `\n📊 Collecting workout data for Date ${selectedDate.toDateString()}`
+      `\n📊 Creating calendar events for Date ${selectedDate.toDateString()}`
     );
     console.log(`📅 Date: ${selectedDate.toDateString()}`);
     console.log(
-      `📱 Strava Date: ${selectedDate.toDateString()} (${
+      `📱 Calendar Date: ${selectedDate.toDateString()} (${
         selectedDate.toISOString().split("T")[0]
       })\n`
     );
@@ -169,13 +169,13 @@ async function main() {
     console.log("📊 Single day operation");
     console.log(`📅 Date: ${selectedDate.toDateString()}`);
     console.log(
-      `📱 Strava Date: ${selectedDate.toDateString()} (${
+      `📱 Calendar Date: ${selectedDate.toDateString()} (${
         selectedDate.toISOString().split("T")[0]
       })\n`
     );
 
     const proceed = await askQuestion(
-      "? Proceed with collecting workout data for this period? (y/n): "
+      "? Proceed with creating calendar events for this period? (y/n): "
     );
     if (proceed.toLowerCase() !== "y") {
       console.log("❌ Operation cancelled");
@@ -183,26 +183,28 @@ async function main() {
     }
 
     console.log(
-      `🔄 Fetching Strava dates ${
+      `🔄 Fetching Notion dates ${
         selectedDate.toISOString().split("T")[0]
       } to ${
         selectedDate.toISOString().split("T")[0]
       } for Date ${selectedDate.toDateString()} - ${selectedDate.toDateString()}`
     );
   } else {
-    console.log(`\n📊 Collecting workout data for ${dateRangeLabel}`);
+    console.log(`\n📊 Creating calendar events for ${dateRangeLabel}`);
     console.log(
       `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
     );
   }
 
-  rl.close();
+  // Get workouts from Notion
+  const workouts = await notion.getWorkoutsForWeek(weekStart, weekEnd);
 
-  // Fetch workouts from Strava
-  const activities = await strava.getActivities(weekStart, weekEnd);
-
-  if (activities.length === 0) {
-    console.log("📭 No activities found for this period");
+  if (workouts.length === 0) {
+    console.log("📭 No workouts found without calendar events for this period");
+    console.log(
+      "💡 Try running collect-workouts.js first to gather workout data"
+    );
+    rl.close();
     return;
   }
 
@@ -214,56 +216,75 @@ async function main() {
     );
   }
 
-  console.log(`🏃‍♂️ Found ${activities.length} workout sessions\n`);
+  console.log(`🗓️ Found ${workouts.length} workout sessions\n`);
 
-  console.log("🏃‍♂️ Processing workout sessions:");
-  let savedCount = 0;
+  console.log("🗓️ Processing workout sessions:");
+  workouts.forEach((workout, index) => {
+    if (optionInput === "1") {
+      console.log(
+        `  ${index + 1}. ${
+          workout.activityName
+        } - Date ${selectedDate.toDateString()}`
+      );
+    } else {
+      console.log(`  ${index + 1}. ${workout.activityName} - ${workout.date}`);
+    }
+  });
 
-  for (const activity of activities) {
+  const finalConfirm = await askQuestion(
+    "\n? Proceed with creating these calendar events? (y/n): "
+  );
+
+  if (finalConfirm.toLowerCase() !== "y") {
+    console.log("❌ Operation cancelled");
+    rl.close();
+    return;
+  }
+
+  rl.close();
+
+  console.log("\n🗓️ Creating calendar events:");
+  let createdCount = 0;
+
+  for (const workout of workouts) {
     try {
-      await notion.createWorkoutRecord(activity);
-      savedCount++;
+      await calendar.createWorkoutEvent(workout);
+      await notion.markCalendarCreated(workout.id);
+      createdCount++;
 
       if (optionInput === "1") {
         console.log(
-          `✅ Processing Date ${selectedDate.toDateString()} from Strava Date ${
-            activity.start_date.split("T")[0]
+          `✅ Processing Date ${selectedDate.toDateString()} from Notion Date ${
+            workout.date
           }`
         );
         console.log(
-          `✅ Created workout record for Date: ${selectedDate.toDateString()} (Strava Date: ${
-            activity.start_date.split("T")[0]
+          `✅ Created calendar event for Date: ${selectedDate.toDateString()} (Notion Date: ${
+            workout.date
           })`
         );
         console.log(
-          `✅ Saved ${selectedDate.toDateString()}: ${activity.name} | ${
-            activity.type
-          } | ${
-            activity.distance
-              ? (activity.distance / 1000).toFixed(2) + "km"
+          `✅ Created ${selectedDate.toDateString()}: ${
+            workout.activityName
+          } | ${workout.type} | ${
+            workout.distance
+              ? (workout.distance / 1000).toFixed(2) + "km"
               : "N/A"
           }`
         );
       } else {
-        console.log(
-          `✅ Saved ${activity.name}: ${activity.type} | ${
-            activity.distance
-              ? (activity.distance / 1000).toFixed(2) + "km"
-              : "N/A"
-          }`
-        );
+        console.log(`✅ Created: ${workout.activityName}`);
       }
     } catch (error) {
-      console.error(`❌ Failed to save ${activity.name}:`, error.message);
+      console.error(
+        `❌ Failed to create calendar event for ${workout.activityName}:`,
+        error.message
+      );
     }
   }
 
-  console.log(
-    `\n✅ Successfully saved ${savedCount} workout sessions to Notion!`
-  );
-  console.log(
-    "🎯 Next: Run update-workout-cal.js to add them to your calendar"
-  );
+  console.log(`\n✅ Successfully created ${createdCount} calendar events!`);
+  console.log("🎯 Check your fitness calendar to see the workouts!");
 }
 
 main().catch(console.error);
