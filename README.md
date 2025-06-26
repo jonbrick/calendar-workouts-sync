@@ -1,26 +1,31 @@
 # Calendar Workout Sync
 
-Automatically sync your Strava workouts to Google Calendar with comprehensive data stored in Notion. Transform your fitness tracking into visual calendar events with rich workout details.
+Automatically sync your Strava workouts to Google Calendar with comprehensive data stored in Notion. Transform your fitness tracking into visual calendar events with rich workout details. Now with manual GPX file upload capability for complete workout data control.
 
 ## What This Does
 
 **Complete Workout Pipeline:** Fetch workouts from Strava → Store detailed data in Notion → Create rich calendar events on Google Calendar
 
-**Week-Based Processing:** Select any week from 2025 and process all workouts at once with precise date boundaries (Sunday-Saturday)
+**Flexible Date Selection:** Choose between week-based processing or single date selection for precise workout collection
+
+**Manual GPX Upload:** Upload workout files directly when Strava API sync issues occur
 
 **Rich Calendar Events:** Each workout appears on your calendar with duration, distance, activity type, and detailed descriptions
 
 ## How It Works
 
-### Two-Script System
+### Three-Script System
 
 1. **`collect-workouts.js`:** Strava API → Notion database storage
 2. **`update-workout-cal.js`:** Notion data → Google Calendar events
+3. **`upload-gpx-file.js`:** Manual GPX file → Notion database storage
 
 ### Data Flow
 
 ```
-Strava Workouts → Weekly Collection → Notion Database → Calendar Creation → Google Calendar
+Strava Workouts → Weekly/Single Date Collection → Notion Database → Calendar Creation → Google Calendar
+                    ↓
+                GPX Files → Manual Upload → Notion Database → Calendar Creation → Google Calendar
 ```
 
 ### Example Output
@@ -43,7 +48,7 @@ Calendar Created: ✓
 ```
 Title: Run - 4.3 miles
 Time: June 18, 2025 6:42 PM - 7:24 PM
-Calendar: + 3. 🏋️‍♀️ Workout
+Calendar: + 3. 💪 Workout
 Description:
 🏃‍♂️ Evening Run
 ⏱️ Duration: 42 minutes
@@ -162,10 +167,13 @@ node collect-workouts.js
 **Interactive Process:**
 
 1. Tests Strava and Notion connections
-2. Shows available weeks (1-52 for 2025)
-3. Select week number (e.g., "24" for June 8-14)
-4. Fetches all Strava activities for that week
-5. Stores comprehensive data in Notion database
+2. **Choose selection method:**
+   - **Option 1:** Enter a specific Date (DD-MM-YY format)
+   - **Option 2:** Select by week number (1-52 for 2025)
+3. **For single date:** Enter date like "24-06-25" for June 24, 2025
+4. **For week selection:** Shows available weeks, select week number (e.g., "24" for June 8-14)
+5. Fetches all Strava activities for selected period
+6. Stores comprehensive data in Notion database
 
 ### Create Calendar Events
 
@@ -176,22 +184,59 @@ node update-workout-cal.js
 **Interactive Process:**
 
 1. Tests Notion and Google Calendar connections
-2. Shows available weeks
-3. Select same week number
-4. Reads workouts from Notion (not yet calendared)
-5. Creates detailed calendar events
-6. Marks workouts as "Calendar Created" in Notion
+2. **Choose selection method:**
+   - **Option 1:** Enter a specific Date (DD-MM-YY format)
+   - **Option 2:** Select by week number (1-52 for 2025)
+3. **For single date:** Enter date like "24-06-25" for June 24, 2025
+4. **For week selection:** Shows available weeks, select week number
+5. Reads workouts from Notion (not yet calendared)
+6. Creates detailed calendar events
+7. Marks workouts as "Calendar Created" in Notion
+
+### Upload GPX File (Manual Backup)
+
+```bash
+node upload-gpx-file.js
+```
+
+**Interactive Process:**
+
+1. **Option 1:** Provide GPX file path as argument: `node upload-gpx-file.js /path/to/file.gpx`
+2. **Option 2:** Run interactively and enter path when prompted
+3. Parses GPX file and extracts workout data
+4. Converts UTC time to EST automatically
+5. Maps activity types to Strava format (e.g., "running" → "Run")
+6. Calculates distance, duration, heart rate, cadence, elevation
+7. Stores workout data in Notion database
+
+**GPX File Support:**
+
+- Extracts track points, heart rate, cadence data
+- Calculates total distance using Haversine formula
+- Converts UTC timestamps to EST timezone
+- Maps activity types to consistent format
+- Handles elevation gain calculations
 
 ### Typical Workflow
 
 ```bash
-# Step 1: Collect this week's workouts
+# Option 1: Week-based workflow
 node collect-workouts.js
-# Enter: 25
+# Choose option 2, enter: 25
 
-# Step 2: Create calendar events for this week
 node update-workout-cal.js
-# Enter: 25
+# Choose option 2, enter: 25
+
+# Option 2: Single date workflow
+node collect-workouts.js
+# Choose option 1, enter: 24-06-25
+
+node update-workout-cal.js
+# Choose option 1, enter: 24-06-25
+
+# Option 3: Manual GPX upload (when API fails)
+node upload-gpx-file.js
+# Enter: /Users/jonbrick/Downloads/Evening_Run_.gpx
 ```
 
 ## Project Structure
@@ -202,8 +247,9 @@ calendar-workout-sync/
 ├── package.json
 ├── .env.example
 ├── .gitignore
-├── collect-workouts.js         # Script 1: Data collection
-├── update-workout-cal.js       # Script 2: Calendar creation
+├── collect-workouts.js         # Script 1: Data collection (week or single date)
+├── update-workout-cal.js       # Script 2: Calendar creation (week or single date)
+├── upload-gpx-file.js          # Script 3: Manual GPX file upload
 ├── lib/
 │   ├── strava-client.js        # Strava API interface
 │   ├── notion-client.js        # Notion database operations
@@ -212,6 +258,24 @@ calendar-workout-sync/
 └── postman/
     └── strava-api-tests.json   # API testing collection
 ```
+
+## Dependencies
+
+**Core Dependencies:**
+
+- `@notionhq/client` - Notion API integration
+- `googleapis` - Google Calendar API
+- `node-fetch@2.7.0` - HTTP requests for Strava API
+- `dotenv` - Environment variable management
+- `xml2js` - GPX file parsing
+
+**Key Features:**
+
+- Automatic token refresh for Strava API
+- Timezone conversion (UTC to EST)
+- GPX file parsing with heart rate and cadence data
+- Interactive command-line interface
+- Comprehensive error handling
 
 ## Week Numbering System
 
@@ -257,6 +321,12 @@ node -e "const { getWeekBoundaries } = require('./lib/week-utils.js'); console.l
 - Use refresh token to get new access token
 - Check token expiration in error messages
 
+**Strava API Missing Workouts:**
+
+- Some workouts may not appear in API due to sync issues
+- Use `upload-gpx-file.js` as backup method
+- Download GPX file from Strava and upload manually
+
 **Notion Database Access:**
 
 - Verify integration is shared with database
@@ -275,19 +345,35 @@ node -e "const { getWeekBoundaries } = require('./lib/week-utils.js'); console.l
 - Check date ranges match expected weeks
 - Verify timezone handling for date boundaries
 
+**Single Date Selection:**
+
+- Use DD-MM-YY format (e.g., "24-06-25")
+- Date validation prevents future dates
+- Past dates are now allowed for historical data
+
+**GPX Upload Issues:**
+
+- Ensure GPX file contains valid track data
+- Check file path is correct (use absolute path if needed)
+- Verify GPX file has proper metadata and track points
+- Timezone conversion automatically handles UTC to EST
+
 ### Data Recovery
 
-- **Missing workouts:** Re-run collect-workouts.js for affected weeks
+- **Missing workouts:** Re-run collect-workouts.js for affected weeks/dates
+- **API sync issues:** Use upload-gpx-file.js for manual upload
 - **Duplicate calendar events:** Script checks for existing events
 - **Wrong week data:** Verify week number calculation
+- **Timezone issues:** GPX upload automatically converts UTC to EST
 
 ## Maintenance
 
 ### Weekly Tasks
 
-- Run data collection for previous week
+- Run data collection for previous week or specific dates
 - Create calendar events for collected data
 - Verify events appear correctly on calendar
+- Check for any missing workouts and use GPX upload if needed
 
 ### Token Management
 
@@ -300,6 +386,34 @@ node -e "const { getWeekBoundaries } = require('./lib/week-utils.js'); console.l
 - **Lock Notion database** to prevent structure changes
 - **Export data** monthly for backup
 - **Monitor rate limits** for all APIs
+
+## New Features & Improvements
+
+### Enhanced Date Selection
+
+- **Single date selection:** Process specific dates instead of full weeks
+- **Flexible input:** DD-MM-YY format for easy date entry
+- **Historical data support:** Can now process past dates
+
+### Manual GPX Upload
+
+- **Backup method:** Upload GPX files when API fails
+- **Complete data extraction:** Heart rate, cadence, elevation, distance
+- **Timezone handling:** Automatic UTC to EST conversion
+- **Activity type mapping:** Consistent format across all methods
+
+### Improved User Experience
+
+- **Interactive prompts:** User-friendly command-line interface
+- **Consistent language:** Matches other fitness tracking scripts
+- **Better error handling:** Clear error messages and recovery options
+- **Progress feedback:** Detailed output during processing
+
+### Data Consistency
+
+- **Unified format:** All scripts use same data structure
+- **Activity type standardization:** "Run", "Ride", "Swim", etc.
+- **Timezone consistency:** EST timezone across all operations
 
 ## Rate Limits & Performance
 
