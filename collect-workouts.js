@@ -221,7 +221,22 @@ async function main() {
 
   for (const activity of activities) {
     try {
-      await notion.createWorkoutRecord(activity);
+      // Convert Strava's UTC time to EST local time
+      const utcTime = new Date(activity.start_date);
+      const estTimeString =
+        utcTime
+          .toLocaleString("sv-SE", {
+            timeZone: "America/New_York",
+          })
+          .replace(" ", "T") + "-04:00";
+
+      // Add the local time to the activity data
+      const activityWithLocalTime = {
+        ...activity,
+        start_date_local: estTimeString,
+      };
+
+      await notion.createWorkoutRecord(activityWithLocalTime);
       savedCount++;
 
       if (optionInput === "1") {

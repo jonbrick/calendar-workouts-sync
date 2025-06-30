@@ -18,10 +18,8 @@ class GPXParser {
       const metadata = gpx.metadata[0];
       const track = gpx.trk[0];
 
-      // Convert UTC to EST (UTC-4 for daylight saving time, UTC-5 for standard time)
+      // Parse the UTC time from GPX metadata
       const utcTime = new Date(metadata.time[0]);
-      const estOffset = -4; // EST is UTC-4 (daylight saving time)
-      const estTime = new Date(utcTime.getTime() + estOffset * 60 * 60 * 1000);
 
       // Extract basic info
       const startTime = utcTime; // Keep original UTC for calculations
@@ -81,11 +79,19 @@ class GPXParser {
       const mappedType =
         typeMap[(activityType || "").toLowerCase()] || "Workout";
 
+      // Create EST time string by formatting the UTC time in EST timezone
+      const estTimeString =
+        utcTime
+          .toLocaleString("sv-SE", {
+            timeZone: "America/New_York",
+          })
+          .replace(" ", "T") + "-04:00";
+
       return {
         name: activityName,
         type: mappedType,
         start_date: startTime.toISOString(),
-        start_date_local: estTime.toISOString(),
+        start_date_local: estTimeString,
         distance: stats.distance,
         moving_time: stats.movingTime,
         total_elevation_gain: stats.elevationGain,
