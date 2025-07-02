@@ -210,14 +210,30 @@ async function main() {
 
   for (const activity of activities) {
     try {
-      // Convert Strava's UTC time to EST local time
+      // Convert Strava's UTC time to EST/EDT local time with correct DST handling
       const utcTime = new Date(activity.start_date);
-      const estTimeString =
-        utcTime
-          .toLocaleString("sv-SE", {
-            timeZone: "America/New_York",
-          })
-          .replace(" ", "T") + "-04:00";
+
+      // Create a date object in EST/EDT timezone to get the correct offset
+      const estDate = new Date(
+        utcTime.toLocaleString("en-US", {
+          timeZone: "America/New_York",
+        })
+      );
+
+      // Get the timezone offset (EST = -05:00, EDT = -04:00)
+      const offset = estDate.getTimezoneOffset();
+      const offsetHours = Math.abs(Math.floor(offset / 60));
+      const offsetMinutes = Math.abs(offset % 60);
+      const offsetString = `-${offsetHours
+        .toString()
+        .padStart(2, "0")}:${offsetMinutes.toString().padStart(2, "0")}`;
+
+      // Format the time in EST/EDT
+      const estTime = utcTime.toLocaleString("sv-SE", {
+        timeZone: "America/New_York",
+      });
+
+      const estTimeString = estTime.replace(" ", "T") + offsetString;
 
       // Add the local time to the activity data
       const activityWithLocalTime = {
