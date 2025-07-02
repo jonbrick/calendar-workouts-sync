@@ -85,9 +85,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("✅ Strava connection successful!");
-  console.log("✅ Notion connection successful!");
-  console.log("📊 Database: Workout Data\n");
+  console.log(""); // Add spacing after connection messages
 
   console.log("📅 Choose your selection method:");
   console.log("  1. Enter a specific Date (DD-MM-YY format)");
@@ -95,7 +93,7 @@ async function main() {
 
   const optionInput = await askQuestion("? Choose option (1 or 2): ");
 
-  let weekStart, weekEnd, dateRangeLabel, selectedDate;
+  let weekStart, weekEnd, dateRangeLabel, selectedDate, weekNumber;
 
   if (optionInput === "1") {
     // Specific date input
@@ -138,7 +136,7 @@ async function main() {
     const weekInput = await askQuestion(
       "? Which week to collect? (enter week number): "
     );
-    const weekNumber = parseInt(weekInput);
+    weekNumber = parseInt(weekInput);
 
     if (weekNumber < 1 || weekNumber > 52) {
       console.log("❌ Invalid week number");
@@ -155,55 +153,46 @@ async function main() {
   }
 
   if (optionInput === "1") {
-    console.log(
-      `\n📊 Collecting workout data for Date ${selectedDate.toDateString()}`
-    );
-    console.log(`📅 Date: ${selectedDate.toDateString()}`);
-    console.log(
-      `📱 Strava Date: ${selectedDate.toDateString()} (${
-        selectedDate.toISOString().split("T")[0]
-      })\n`
-    );
+    // Calculate which week this date falls into
+    const weekBoundaries = getWeekBoundariesForDate(selectedDate);
+    const weekStartForDate = weekBoundaries.weekStart;
+    const weekEndForDate = weekBoundaries.weekEnd;
 
-    console.log("📋 Summary:");
-    console.log("📊 Single day operation");
-    console.log(`📅 Date: ${selectedDate.toDateString()}`);
-    console.log(
-      `📱 Strava Date: ${selectedDate.toDateString()} (${
-        selectedDate.toISOString().split("T")[0]
-      })\n`
-    );
-
-    const proceed = await askQuestion(
-      "? Proceed with collecting workout data for this period? (y/n): "
-    );
-    if (proceed.toLowerCase() !== "y") {
-      console.log("❌ Operation cancelled");
-      process.exit(0);
+    // Find the week number by checking which week of 2025 this falls into
+    weekNumber = 1;
+    for (let i = 1; i <= 52; i++) {
+      const { weekStart: testWeekStart, weekEnd: testWeekEnd } =
+        getWeekBoundaries(2025, i);
+      if (selectedDate >= testWeekStart && selectedDate <= testWeekEnd) {
+        weekNumber = i;
+        break;
+      }
     }
 
-    console.log(
-      `🔄 Fetching Strava dates ${
-        selectedDate.toISOString().split("T")[0]
-      } to ${
-        selectedDate.toISOString().split("T")[0]
-      } for Date ${selectedDate.toDateString()} - ${selectedDate.toDateString()}`
-    );
+    console.log(`\n📊 Week ${weekNumber}: ${selectedDate.toDateString()}`);
   } else {
-    console.log(`\n📊 Collecting workout data for ${dateRangeLabel}`);
     console.log(
-      `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+      `\n📊 Week ${weekNumber}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
     );
   }
 
-  rl.close();
+  // Final confirmation
+
+  const finalConfirm = await askQuestion("? Proceed? (y/n): ");
+  if (finalConfirm.toLowerCase() !== "y") {
+    console.log("❌ Cancelled");
+    process.exit(0);
+  }
+
+  console.log("\n🚀 Collecting...\n");
 
   // Fetch workouts from Strava
   const activities = await strava.getActivities(weekStart, weekEnd);
 
   if (activities.length === 0) {
-    console.log("📭 No activities found for this period");
-    return;
+    console.log(`📭 Week ${weekNumber}: No activities found`);
+    rl.close();
+    process.exit(0);
   }
 
   if (optionInput === "1") {
@@ -273,12 +262,9 @@ async function main() {
     }
   }
 
-  console.log(
-    `\n✅ Successfully saved ${savedCount} workout sessions to Notion!`
-  );
-  console.log(
-    "🎯 Next: Run update-workout-cal.js to add them to your calendar"
-  );
+  console.log(`\n✅ Week ${weekNumber}: ${savedCount} workouts saved`);
+
+  rl.close();
 }
 
 main().catch(console.error);
