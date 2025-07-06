@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const xml2js = require("xml2js");
-const NotionClient = require("./lib/notion-client.js");
+const NotionClient = require("./lib/strava-notion-client.js");
 const readline = require("readline");
 
 class GPXParser {

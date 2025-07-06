@@ -1,9 +1,9 @@
 const StravaClient = require("./lib/strava-client.js");
-const NotionClient = require("./lib/notion-client.js");
+const NotionClient = require("./lib/strava-notion-client.js");
 const {
   getWeekBoundaries,
   generateWeekOptions,
-} = require("./lib/week-utils.js");
+} = require("./lib/strava-week-utils.js");
 const readline = require("readline");
 
 // Create clients
